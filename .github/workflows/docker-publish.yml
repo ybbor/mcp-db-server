@@ -53,7 +53,14 @@ jobs:
 
       - name: Initialize test database
         run: |
-          PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -f init_db.sql
+          PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -c "
+          CREATE TABLE IF NOT EXISTS test_table (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(100),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );
+          INSERT INTO test_table (name) VALUES ('test1'), ('test2'), ('test3');
+          "
 
       - name: Run basic health check test
         env:
