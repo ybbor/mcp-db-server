@@ -145,7 +145,7 @@ jobs:
               print(f'✅ Users table schema: {len(user_schema)} columns')
               
               # Test query execution
-              result = await db.execute_query('SELECT COUNT(*) as count FROM users')
+              result = await db.execute_safe_query('SELECT COUNT(*) as count FROM users')
               assert result['success'], 'Query execution failed'
               assert result['data'][0]['count'] == 3, 'Expected 3 users'
               print('✅ Query execution successful')
@@ -168,7 +168,7 @@ jobs:
               print(f'✅ Found {len(tables)} tables: {[t[\"table_name\"] for t in tables]}')
               
               # Test query execution
-              result = await db.execute_query('SELECT COUNT(*) as count FROM orders')
+              result = await db.execute_safe_query('SELECT COUNT(*) as count FROM orders')
               assert result['success'], 'MySQL query execution failed'
               assert result['data'][0]['count'] == 3, 'Expected 3 orders'
               print('✅ MySQL query execution successful')
@@ -209,7 +209,7 @@ jobs:
               print('✅ SQLite connection successful')
               
               # Create test table
-              await db.execute_query('''
+              await db.execute_safe_query('''
                 CREATE TABLE IF NOT EXISTS test_items (
                   id INTEGER PRIMARY KEY,
                   name TEXT NOT NULL,
@@ -218,7 +218,7 @@ jobs:
               ''')
               
               # Insert test data
-              await db.execute_query('''
+              await db.execute_safe_query('''
                 INSERT INTO test_items (name, value) VALUES 
                 ('Item 1', 10.5),
                 ('Item 2', 20.3),
@@ -226,7 +226,7 @@ jobs:
               ''')
               
               # Test query
-              result = await db.execute_query('SELECT COUNT(*) as count FROM test_items')
+              result = await db.execute_safe_query('SELECT COUNT(*) as count FROM test_items')
               assert result['success'], 'SQLite query failed'
               assert result['data'][0]['count'] == 3, 'Expected 3 items'
               print('✅ SQLite functionality test passed')
