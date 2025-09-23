@@ -402,7 +402,7 @@ async def main(database_url: str = None, config_file: str = None):
     await initialize_database(database_url, config_file)
     
     # Run the MCP server using stdio
-    await mcp.run_stdio()
+    await mcp.run_stdio_async()
 
 if __name__ == "__main__":
     # Parse command line arguments
