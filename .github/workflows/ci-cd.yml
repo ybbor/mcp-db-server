@@ -1,0 +1,328 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME: mcp-db-server
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: testdb
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: mysql
+          MYSQL_DATABASE: testdb
+          MYSQL_USER: mysql
+          MYSQL_PASSWORD: mysql
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+        ports:
+          - 3306:3306
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio
+
+      - name: Wait for databases
+        run: |
+          echo "Waiting for PostgreSQL..."
+          until pg_isready -h localhost -p 5432 -U postgres; do
+            echo "PostgreSQL not ready, waiting..."
+            sleep 2
+          done
+          
+          echo "Waiting for MySQL..."
+          until mysqladmin ping -h 127.0.0.1 -P 3306 -u mysql -pmysql --silent; do
+            echo "MySQL not ready, waiting..."
+            sleep 2
+          done
+
+      - name: Initialize PostgreSQL test database
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -d testdb -c "
+          CREATE TABLE IF NOT EXISTS users (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(100) NOT NULL,
+            email VARCHAR(100) UNIQUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );
+          CREATE TABLE IF NOT EXISTS products (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(100) NOT NULL,
+            price DECIMAL(10,2),
+            stock INTEGER DEFAULT 0
+          );
+          INSERT INTO users (name, email) VALUES 
+            ('John Doe', 'john@example.com'),
+            ('Jane Smith', 'jane@example.com'),
+            ('Bob Johnson', 'bob@example.com');
+          INSERT INTO products (name, price, stock) VALUES
+            ('Laptop', 999.99, 10),
+            ('Mouse', 29.99, 50),
+            ('Keyboard', 79.99, 25);
+          "
+
+      - name: Initialize MySQL test database
+        run: |
+          mysql -h 127.0.0.1 -P 3306 -u mysql -pmysql testdb -e "
+          CREATE TABLE IF NOT EXISTS orders (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            customer_name VARCHAR(100) NOT NULL,
+            total_amount DECIMAL(10,2),
+            order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          );
+          INSERT INTO orders (customer_name, total_amount) VALUES
+            ('Alice Brown', 1299.97),
+            ('Charlie Wilson', 109.98),
+            ('Diana Clark', 79.99);
+          "
+
+      - name: Run comprehensive tests
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/testdb
+          MYSQL_URL: mysql+aiomysql://mysql:mysql@localhost:3306/testdb
+        run: |
+          # Test PostgreSQL connection and queries
+          python -c "
+          import asyncio
+          from app.db import DatabaseManager
+          import os
+
+          async def test_postgresql():
+              print('=== Testing PostgreSQL ===')
+              db = DatabaseManager()
+              
+              # Test connection
+              assert await db.test_connection(), 'PostgreSQL connection failed'
+              print('✅ PostgreSQL connection successful')
+              
+              # Test listing tables
+              tables = await db.list_tables()
+              assert len(tables) >= 2, f'Expected at least 2 tables, got {len(tables)}'
+              print(f'✅ Found {len(tables)} tables: {[t[\"table_name\"] for t in tables]}')
+              
+              # Test describe table
+              user_schema = await db.describe_table('users')
+              assert len(user_schema) > 0, 'users table schema is empty'
+              print(f'✅ Users table schema: {len(user_schema)} columns')
+              
+              # Test query execution
+              result = await db.execute_query('SELECT COUNT(*) as count FROM users')
+              assert result['success'], 'Query execution failed'
+              assert result['data'][0]['count'] == 3, 'Expected 3 users'
+              print('✅ Query execution successful')
+              
+              await db.close()
+              print('✅ PostgreSQL tests completed successfully')
+
+          async def test_mysql():
+              print('=== Testing MySQL ===')
+              os.environ['DATABASE_URL'] = os.environ['MYSQL_URL']
+              db = DatabaseManager()
+              
+              # Test connection
+              assert await db.test_connection(), 'MySQL connection failed'
+              print('✅ MySQL connection successful')
+              
+              # Test listing tables
+              tables = await db.list_tables()
+              assert len(tables) >= 1, f'Expected at least 1 table, got {len(tables)}'
+              print(f'✅ Found {len(tables)} tables: {[t[\"table_name\"] for t in tables]}')
+              
+              # Test query execution
+              result = await db.execute_query('SELECT COUNT(*) as count FROM orders')
+              assert result['success'], 'MySQL query execution failed'
+              assert result['data'][0]['count'] == 3, 'Expected 3 orders'
+              print('✅ MySQL query execution successful')
+              
+              await db.close()
+              print('✅ MySQL tests completed successfully')
+
+          async def main():
+              await test_postgresql()
+              await test_mysql()
+              print('🎉 All database tests passed!')
+
+          asyncio.run(main())
+          "
+
+      - name: Run MCP server tests
+        run: |
+          python test_mcp_tools.py
+
+      - name: Run live integration tests
+        run: |
+          python live_test.py
+
+      - name: Test SQLite functionality
+        run: |
+          python -c "
+          import asyncio
+          import os
+          from app.db import DatabaseManager
+
+          async def test_sqlite():
+              print('=== Testing SQLite ===')
+              os.environ['DATABASE_URL'] = 'sqlite+aiosqlite:///test_ci.db'
+              db = DatabaseManager()
+              
+              # Test connection
+              assert await db.test_connection(), 'SQLite connection failed'
+              print('✅ SQLite connection successful')
+              
+              # Create test table
+              await db.execute_query('''
+                CREATE TABLE IF NOT EXISTS test_items (
+                  id INTEGER PRIMARY KEY,
+                  name TEXT NOT NULL,
+                  value REAL
+                )
+              ''')
+              
+              # Insert test data
+              await db.execute_query('''
+                INSERT INTO test_items (name, value) VALUES 
+                ('Item 1', 10.5),
+                ('Item 2', 20.3),
+                ('Item 3', 15.7)
+              ''')
+              
+              # Test query
+              result = await db.execute_query('SELECT COUNT(*) as count FROM test_items')
+              assert result['success'], 'SQLite query failed'
+              assert result['data'][0]['count'] == 3, 'Expected 3 items'
+              print('✅ SQLite functionality test passed')
+              
+              await db.close()
+
+          asyncio.run(test_sqlite())
+          "
+
+  docker-build:
+    name: Build and Push Docker Image
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Test Docker image
+        run: |
+          # Test that the image runs correctly
+          docker run --rm -d --name test-container \
+            -p 3000:3000 \
+            -e DATABASE_URL=sqlite+aiosqlite:///data/test.db \
+            ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:latest
+
+          # Wait for container to start
+          sleep 15
+
+          # Test health endpoint
+          curl -f http://localhost:3000/health || exit 1
+
+          # Check if container is still running
+          if ! docker ps | grep test-container; then
+            echo "Container failed to stay running"
+            docker logs test-container
+            exit 1
+          fi
+
+          # Clean up
+          docker stop test-container
+          echo "✅ Docker image test passed"
+
+  security-scan:
+    name: Security Scan
+    needs: docker-build
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+
+    steps:
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:latest
+          format: "sarif"
+          output: "trivy-results.sarif"
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: "trivy-results.sarif"
