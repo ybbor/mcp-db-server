@@ -1,0 +1,99 @@
+version: "3.8"
+
+services:
+  mcp-database-server:
+    build: .
+    image: mcp-database-server:latest
+    container_name: mcp-db-server
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///data/default.db
+      - PYTHONUNBUFFERED=1
+    volumes:
+      # Mount data directory for persistent SQLite databases
+      - ./data:/data
+      # Optional: Mount config files
+      - ./config:/app/config:ro
+    stdin_open: true # Required for MCP stdio communication
+    tty: true
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import asyncio; import sys; sys.path.insert(0, 'app'); from db import DatabaseManager; dm = DatabaseManager(); print('OK' if asyncio.run(dm.test_connection()) else 'FAIL')",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - mcp-network
+
+  # Optional PostgreSQL service for testing
+  postgres:
+    image: postgres:15-alpine
+    container_name: mcp-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: testdb
+      POSTGRES_USER: mcp_user
+      POSTGRES_PASSWORD: mcp_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5432:5432"
+    networks:
+      - mcp-network
+    profiles:
+      - with-postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mcp_user -d testdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Optional MySQL service for testing
+  mysql:
+    image: mysql:8.0
+    container_name: mcp-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: testdb
+      MYSQL_USER: mcp_user
+      MYSQL_PASSWORD: mcp_password
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./init-scripts:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "3306:3306"
+    networks:
+      - mcp-network
+    profiles:
+      - with-mysql
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "localhost",
+          "-u",
+          "mcp_user",
+          "-pmcp_password",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  mysql_data:
+
+networks:
+  mcp-network:
+    driver: bridge
