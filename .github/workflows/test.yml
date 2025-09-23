@@ -123,12 +123,18 @@ jobs:
           # Test PostgreSQL connection and queries
           python -c "
           import asyncio
-          from app.db import DatabaseManager
           import os
+          from app.db import DatabaseManager
+
+          # Ensure environment variable is set
+          os.environ['DATABASE_URL'] = 'postgresql+asyncpg://postgres:postgres@localhost:5432/testdb'
+          print(f'Using DATABASE_URL: {os.environ[\"DATABASE_URL\"]}')
 
           async def test_postgresql():
               print('=== Testing PostgreSQL ===')
               db = DatabaseManager()
+              print(f'DatabaseManager URL: {db.database_url}')
+              print(f'DatabaseManager Type: {db.database_type}')
               
               # Test connection
               assert await db.test_connection(), 'PostgreSQL connection failed'
@@ -155,8 +161,11 @@ jobs:
 
           async def test_mysql():
               print('=== Testing MySQL ===')
-              os.environ['DATABASE_URL'] = os.environ['MYSQL_URL']
+              os.environ['DATABASE_URL'] = 'mysql+aiomysql://mysql:mysql@localhost:3306/testdb'
+              print(f'Using DATABASE_URL: {os.environ[\"DATABASE_URL\"]}')
               db = DatabaseManager()
+              print(f'DatabaseManager URL: {db.database_url}')
+              print(f'DatabaseManager Type: {db.database_type}')
               
               # Test connection
               assert await db.test_connection(), 'MySQL connection failed'
@@ -185,14 +194,22 @@ jobs:
           "
 
       - name: Run MCP server tests
+        env:
+          DATABASE_URL: sqlite+aiosqlite:///test_mcp.db
         run: |
+          echo "Running MCP server tests with SQLite..."
           python test_mcp_tools.py
 
       - name: Run live integration tests
+        env:
+          DATABASE_URL: sqlite+aiosqlite:///test_live.db
         run: |
+          echo "Running live integration tests with SQLite..."
           python live_test.py
 
       - name: Test SQLite functionality
+        env:
+          DATABASE_URL: sqlite+aiosqlite:///test_ci.db
         run: |
           python -c "
           import asyncio
@@ -201,8 +218,13 @@ jobs:
 
           async def test_sqlite():
               print('=== Testing SQLite ===')
+              # Ensure environment variable is set
               os.environ['DATABASE_URL'] = 'sqlite+aiosqlite:///test_ci.db'
+              print(f'Using DATABASE_URL: {os.environ[\"DATABASE_URL\"]}')
+              
               db = DatabaseManager()
+              print(f'DatabaseManager URL: {db.database_url}')
+              print(f'DatabaseManager Type: {db.database_type}')
               
               # Test connection
               assert await db.test_connection(), 'SQLite connection failed'
