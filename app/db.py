@@ -144,14 +144,15 @@ class DatabaseManager:
                 result = await conn.execute(query)
                 tables = []
                 for row in result:
+                    # Use index-based access instead of attribute access for compatibility
                     table_info = {
-                        "table_name": row.table_name,
-                        "column_count": row.column_count
+                        "table_name": row[0],  # First column is table_name
+                        "column_count": row[1] if len(row) > 1 else 0  # Second column is column_count
                     }
                     
                     # For SQLite, get actual column count
                     if self.database_type == "sqlite":
-                        col_query = text(f"PRAGMA table_info({row.table_name})")
+                        col_query = text(f"PRAGMA table_info({row[0]})")
                         col_result = await conn.execute(col_query)
                         table_info["column_count"] = len(list(col_result))
                     

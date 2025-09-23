@@ -142,6 +142,9 @@ jobs:
               
               # Test listing tables
               tables = await db.list_tables()
+              print(f'Raw tables result: {tables}')
+              if tables:
+                  print(f'First table keys: {list(tables[0].keys())}')
               assert len(tables) >= 2, f'Expected at least 2 tables, got {len(tables)}'
               print(f'✅ Found {len(tables)} tables: {[t[\"table_name\"] for t in tables]}')
               
@@ -172,6 +175,9 @@ jobs:
               
               # Test listing tables
               tables = await db.list_tables()
+              print(f'Raw tables result: {tables}')
+              if tables:
+                  print(f'First table keys: {list(tables[0].keys())}')
               assert len(tables) >= 1, f'Expected at least 1 table, got {len(tables)}'
               print(f'✅ Found {len(tables)} tables: {[t[\"table_name\"] for t in tables]}')
               
