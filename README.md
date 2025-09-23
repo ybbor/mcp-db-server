@@ -1,7 +1,5 @@
 # mcp-db-server
 
-[![GitHub Actions](https://github.com/Souhar-dya/mcp-db-server/workflows/Build%20and%20Push%20Docker%20Image/badge.svg)](https://github.com/Souhar-dya/mcp-db-server/actions)
-[![Docker Pulls](https://img.shields.io/docker/pulls/souhardyak/mcp-db-server)](https://hub.docker.com/r/souhardyak/mcp-db-server)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 
