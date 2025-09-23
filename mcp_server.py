@@ -326,6 +326,138 @@ async def get_current_database_info() -> str:
     except Exception as e:
         return f"❌ Error getting database info: {str(e)}"
 
+@mcp.tool()
+async def execute_unsafe_sql(sql_query: str) -> str:
+    """
+    Execute any SQL query without safety restrictions (allows CREATE, DELETE, INSERT, DROP, etc.).
+    ⚠️ WARNING: This tool can modify or delete data. Use with caution!
+    
+    Args:
+        sql_query: Any SQL query including CREATE, INSERT, UPDATE, DELETE, DROP operations
+        
+    Returns:
+        The query results or success message for modification operations
+    """
+    try:
+        results = await db_manager.execute_unsafe_query(sql_query)
+        
+        if not results:
+            return "✅ Query executed successfully (no results returned)"
+        
+        # Check if this is a modification operation
+        if len(results) == 1 and 'query_type' in results[0] and results[0]['query_type'] == 'modification':
+            affected_rows = results[0].get('affected_rows', 0)
+            return f"✅ Query executed successfully. Affected rows: {affected_rows}"
+        
+        # Format results for display
+        if isinstance(results, list) and len(results) > 0:
+            response = f"Query Results ({len(results)} rows):\n\n"
+            for i, row in enumerate(results):
+                response += f"Row {i+1}:\n"
+                for key, value in row.items():
+                    response += f"  {key}: {value}\n"
+                response += "\n"
+            return response
+        else:
+            return "✅ Query executed successfully (no data returned)"
+            
+    except Exception as e:
+        return f"❌ Error executing unsafe SQL: {str(e)}"
+
+@mcp.tool()
+async def create_table(table_name: str, columns_definition: str) -> str:
+    """
+    Create a new table in the database.
+    
+    Args:
+        table_name: Name of the table to create
+        columns_definition: Column definitions (e.g., "id INTEGER PRIMARY KEY, name TEXT NOT NULL, age INTEGER")
+        
+    Returns:
+        Success message or error details
+    """
+    try:
+        create_query = f"CREATE TABLE {table_name} ({columns_definition})"
+        results = await db_manager.execute_unsafe_query(create_query)
+        return f"✅ Table '{table_name}' created successfully!"
+        
+    except Exception as e:
+        return f"❌ Error creating table: {str(e)}"
+
+@mcp.tool()
+async def insert_data(table_name: str, columns: str, values: str) -> str:
+    """
+    Insert data into a table.
+    
+    Args:
+        table_name: Name of the table to insert into
+        columns: Column names (e.g., "name, age, email")
+        values: Values to insert (e.g., "'John Doe', 30, 'john@example.com'")
+        
+    Returns:
+        Success message with number of rows affected
+    """
+    try:
+        insert_query = f"INSERT INTO {table_name} ({columns}) VALUES ({values})"
+        results = await db_manager.execute_unsafe_query(insert_query)
+        affected_rows = results[0].get('affected_rows', 0) if results else 0
+        return f"✅ Inserted {affected_rows} row(s) into '{table_name}'"
+        
+    except Exception as e:
+        return f"❌ Error inserting data: {str(e)}"
+
+@mcp.tool()
+async def delete_data(table_name: str, where_condition: str = "") -> str:
+    """
+    Delete data from a table.
+    ⚠️ WARNING: This will permanently delete data!
+    
+    Args:
+        table_name: Name of the table to delete from
+        where_condition: WHERE clause condition (e.g., "id = 1" or "age > 65"). If empty, ALL rows will be deleted!
+        
+    Returns:
+        Success message with number of rows deleted
+    """
+    try:
+        if where_condition.strip():
+            delete_query = f"DELETE FROM {table_name} WHERE {where_condition}"
+        else:
+            delete_query = f"DELETE FROM {table_name}"
+            
+        results = await db_manager.execute_unsafe_query(delete_query)
+        affected_rows = results[0].get('affected_rows', 0) if results else 0
+        return f"✅ Deleted {affected_rows} row(s) from '{table_name}'"
+        
+    except Exception as e:
+        return f"❌ Error deleting data: {str(e)}"
+
+@mcp.tool()
+async def update_data(table_name: str, set_clause: str, where_condition: str = "") -> str:
+    """
+    Update data in a table.
+    
+    Args:
+        table_name: Name of the table to update
+        set_clause: SET clause (e.g., "name = 'New Name', age = 25")
+        where_condition: WHERE clause condition (e.g., "id = 1"). If empty, ALL rows will be updated!
+        
+    Returns:
+        Success message with number of rows updated
+    """
+    try:
+        if where_condition.strip():
+            update_query = f"UPDATE {table_name} SET {set_clause} WHERE {where_condition}"
+        else:
+            update_query = f"UPDATE {table_name} SET {set_clause}"
+            
+        results = await db_manager.execute_unsafe_query(update_query)
+        affected_rows = results[0].get('affected_rows', 0) if results else 0
+        return f"✅ Updated {affected_rows} row(s) in '{table_name}'"
+        
+    except Exception as e:
+        return f"❌ Error updating data: {str(e)}"
+
 @mcp.resource("database://tables")
 async def get_database_tables() -> str:
     """Resource that provides information about database tables"""

@@ -276,6 +276,36 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"Error executing query: {e}")
             raise
+    
+    async def execute_unsafe_query(self, query: str) -> List[Dict[str, Any]]:
+        """Execute any SQL query without safety restrictions (allows CREATE, DELETE, INSERT, etc.)"""
+        try:
+            async with self.engine.begin() as conn:
+                result = await conn.execute(text(query))
+
+                # Check if this query returns rows
+                if result.returns_rows:
+                    # Convert rows to dictionaries
+                    rows = []
+                    for row in result:
+                        row_dict = {}
+                        for i, col in enumerate(result.keys()):
+                            value = row[i]
+                            # Handle special types that aren't JSON serializable
+                            if hasattr(value, 'isoformat'):  # datetime objects
+                                value = value.isoformat()
+                            elif hasattr(value, '__str__') and not isinstance(value, (str, int, float, bool, type(None))):
+                                value = str(value)
+                            row_dict[col] = value
+                        rows.append(row_dict)
+                    return rows
+                else:
+                    # For non-SELECT queries (INSERT, UPDATE, CREATE, DELETE, etc.)
+                    return [{"affected_rows": result.rowcount, "status": "success", "query_type": "modification"}]
+
+        except Exception as e:
+            logger.error(f"Error executing unsafe query: {e}")
+            raise
 
 # Global database manager instance
 _db_manager: Optional[DatabaseManager] = None
