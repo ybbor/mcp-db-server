@@ -15,11 +15,7 @@
     "query-execution",
     "schema-inspection"
   ],
-  "categories": [
-    "database",
-    "productivity",
-    "development"
-  ],
+  "categories": ["database", "productivity", "development"],
   "keywords": [
     "database",
     "sql",
@@ -31,16 +27,8 @@
     "query-builder"
   ],
   "configuration": {
-    "required": [
-      "DATABASE_URL"
-    ],
-    "optional": [
-      "DB_HOST",
-      "DB_PORT", 
-      "DB_USER",
-      "DB_PASSWORD",
-      "DB_NAME"
-    ]
+    "required": ["DATABASE_URL"],
+    "optional": ["DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD", "DB_NAME"]
   },
   "tools": [
     {
@@ -48,7 +36,7 @@
       "description": "Execute natural language queries against the database"
     },
     {
-      "name": "list_tables", 
+      "name": "list_tables",
       "description": "List all available tables in the database"
     },
     {
@@ -80,7 +68,7 @@
       }
     },
     {
-      "name": "PostgreSQL Connection", 
+      "name": "PostgreSQL Connection",
       "config": {
         "DATABASE_URL": "postgresql+asyncpg://user:password@localhost:5432/mydb"
       }
