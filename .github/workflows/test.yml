@@ -156,7 +156,6 @@ jobs:
               assert result[0]['count'] == 3, 'Expected 3 users'
               print('✅ Query execution successful')
               
-              await db.close()
               print('✅ PostgreSQL tests completed successfully')
 
           async def test_mysql():
@@ -182,7 +181,6 @@ jobs:
               assert result[0]['count'] == 3, 'Expected 3 orders'
               print('✅ MySQL query execution successful')
               
-              await db.close()
               print('✅ MySQL tests completed successfully')
 
           async def main():
@@ -239,8 +237,6 @@ jobs:
               assert len(result) > 0, 'SQLite query returned no results'
               assert result[0]['test_value'] == 1, 'Expected test_value to be 1'
               print('✅ SQLite functionality test passed')
-              
-              await db.close()
 
           asyncio.run(test_sqlite())
           "
