@@ -57,20 +57,8 @@ jobs:
           INSERT INTO test_table (name) VALUES ('test1'), ('test2'), ('test3');
           "
 
-      - name: Run basic health check test
+      - name: Run comprehensive test suite
         env:
           DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/postgres
         run: |
-          python -c "
-          import asyncio
-          from app.db import DatabaseManager
-
-          async def test():
-              db = DatabaseManager()
-              assert await db.test_connection(), 'Database connection failed'
-              tables = await db.list_tables()
-              assert len(tables) > 0, 'No tables found'
-              print(f'Found {len(tables)} tables: {[t[\"table_name\"] for t in tables]}')
-              
-          asyncio.run(test())
-          "
+          python test_suite.py --database-url postgresql+asyncpg://postgres:postgres@localhost:5432/postgres
