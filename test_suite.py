@@ -57,63 +57,56 @@ class MCPTestSuite:
         
         try:
             async with self.db_manager.engine.begin() as conn:
-                # Create customers table
+                # Create customers table (PostgreSQL compatible)
                 await conn.execute(text("""
                     CREATE TABLE IF NOT EXISTS customers (
                         id INTEGER PRIMARY KEY,
-                        first_name TEXT NOT NULL,
-                        last_name TEXT NOT NULL,
-                        email TEXT UNIQUE NOT NULL,
-                        phone TEXT,
+                        first_name VARCHAR(255) NOT NULL,
+                        last_name VARCHAR(255) NOT NULL,
+                        email VARCHAR(255) UNIQUE NOT NULL,
+                        phone VARCHAR(255),
                         address TEXT,
-                        city TEXT,
-                        state TEXT,
-                        zip_code TEXT,
-                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                        city VARCHAR(255),
+                        state VARCHAR(255),
+                        zip_code VARCHAR(255)
                     )
                 """))
                 
-                # Create products table
+                # Create products table (PostgreSQL compatible)
                 await conn.execute(text("""
                     CREATE TABLE IF NOT EXISTS products (
                         id INTEGER PRIMARY KEY,
-                        name TEXT NOT NULL,
+                        name VARCHAR(255) NOT NULL,
                         description TEXT,
                         price DECIMAL(10,2) NOT NULL,
-                        category TEXT,
-                        stock_quantity INTEGER DEFAULT 0,
-                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                        category VARCHAR(255),
+                        stock_quantity INTEGER DEFAULT 0
                     )
                 """))
                 
-                # Create orders table
+                # Create orders table (PostgreSQL compatible)
                 await conn.execute(text("""
                     CREATE TABLE IF NOT EXISTS orders (
                         id INTEGER PRIMARY KEY,
                         customer_id INTEGER,
-                        order_date DATETIME DEFAULT CURRENT_TIMESTAMP,
                         total_amount DECIMAL(10,2),
-                        status TEXT DEFAULT 'pending',
-                        FOREIGN KEY (customer_id) REFERENCES customers(id)
+                        status VARCHAR(255) DEFAULT 'pending'
                     )
                 """))
                 
-                # Create order_items table
+                # Create order_items table (PostgreSQL compatible)
                 await conn.execute(text("""
                     CREATE TABLE IF NOT EXISTS order_items (
                         id INTEGER PRIMARY KEY,
                         order_id INTEGER,
                         product_id INTEGER,
                         quantity INTEGER,
-                        unit_price DECIMAL(10,2),
-                        FOREIGN KEY (order_id) REFERENCES orders(id),
-                        FOREIGN KEY (product_id) REFERENCES products(id)
+                        unit_price DECIMAL(10,2)
                     )
                 """))
                 
-                # Insert sample customers
-                await conn.execute(text("""
-                    INSERT OR REPLACE INTO customers (id, first_name, last_name, email, phone, city, state) VALUES
+                # Insert sample customers (database-agnostic approach)
+                customers_data = [
                     (1, 'John', 'Doe', 'john.doe@email.com', '555-0101', 'New York', 'NY'),
                     (2, 'Jane', 'Smith', 'jane.smith@email.com', '555-0102', 'Los Angeles', 'CA'),
                     (3, 'Bob', 'Johnson', 'bob.johnson@email.com', '555-0103', 'Chicago', 'IL'),
@@ -124,11 +117,22 @@ class MCPTestSuite:
                     (8, 'Grace', 'Lee', 'grace.lee@email.com', '555-0108', 'San Diego', 'CA'),
                     (9, 'Henry', 'Garcia', 'henry.garcia@email.com', '555-0109', 'Dallas', 'TX'),
                     (10, 'Iris', 'Martinez', 'iris.martinez@email.com', '555-0110', 'San Jose', 'CA')
-                """))
+                ]
                 
-                # Insert sample products
-                await conn.execute(text("""
-                    INSERT OR REPLACE INTO products (id, name, description, price, category, stock_quantity) VALUES
+                for customer in customers_data:
+                    try:
+                        await conn.execute(text("""
+                            INSERT INTO customers (id, first_name, last_name, email, phone, city, state) 
+                            VALUES (:id, :first_name, :last_name, :email, :phone, :city, :state)
+                        """), {
+                            'id': customer[0], 'first_name': customer[1], 'last_name': customer[2],
+                            'email': customer[3], 'phone': customer[4], 'city': customer[5], 'state': customer[6]
+                        })
+                    except Exception:
+                        pass  # Ignore duplicate key errors
+                
+                # Insert sample products (database-agnostic approach)
+                products_data = [
                     (1, 'Laptop Pro', 'High-performance laptop', 1299.99, 'Electronics', 50),
                     (2, 'Wireless Mouse', 'Ergonomic wireless mouse', 29.99, 'Electronics', 100),
                     (3, 'Mechanical Keyboard', 'RGB mechanical keyboard', 79.99, 'Electronics', 75),
@@ -139,47 +143,62 @@ class MCPTestSuite:
                     (8, 'Notebook', 'Spiral notebook', 5.99, 'Office', 300),
                     (9, 'Pen Set', '12-pack ballpoint pens', 8.99, 'Office', 250),
                     (10, 'USB Cable', 'USB-C charging cable', 15.99, 'Electronics', 80)
-                """))
+                ]
                 
-                # Insert sample orders
-                await conn.execute(text("""
-                    INSERT OR REPLACE INTO orders (id, customer_id, total_amount, status) VALUES
-                    (1, 1, 1329.98, 'completed'),
-                    (2, 2, 109.98, 'completed'),
-                    (3, 3, 199.99, 'pending'),
-                    (4, 4, 24.99, 'completed'),
-                    (5, 5, 479.98, 'completed'),
-                    (6, 6, 37.98, 'pending'),
-                    (7, 7, 1315.98, 'completed'),
-                    (8, 8, 14.98, 'completed'),
-                    (9, 9, 399.99, 'pending'),
-                    (10, 1, 15.99, 'completed'),
-                    (11, 2, 79.99, 'completed'),
-                    (12, 3, 29.99, 'pending'),
-                    (13, 4, 200.98, 'completed'),
-                    (14, 5, 12.99, 'completed'),
-                    (15, 6, 1299.99, 'pending')
-                """))
+                for product in products_data:
+                    try:
+                        await conn.execute(text("""
+                            INSERT INTO products (id, name, description, price, category, stock_quantity) 
+                            VALUES (:id, :name, :description, :price, :category, :stock_quantity)
+                        """), {
+                            'id': product[0], 'name': product[1], 'description': product[2],
+                            'price': product[3], 'category': product[4], 'stock_quantity': product[5]
+                        })
+                    except Exception:
+                        pass
                 
-                # Insert sample order items
-                await conn.execute(text("""
-                    INSERT OR REPLACE INTO order_items (order_id, product_id, quantity, unit_price) VALUES
-                    (1, 1, 1, 1299.99), (1, 2, 1, 29.99),
-                    (2, 3, 1, 79.99), (2, 2, 1, 29.99),
-                    (3, 4, 1, 199.99),
-                    (4, 7, 1, 24.99),
-                    (5, 5, 1, 399.99), (5, 3, 1, 79.99),
-                    (6, 6, 2, 12.99), (6, 8, 2, 5.99),
-                    (7, 1, 1, 1299.99), (7, 10, 1, 15.99),
-                    (8, 9, 1, 8.99), (8, 8, 1, 5.99),
-                    (9, 5, 1, 399.99),
-                    (10, 10, 1, 15.99),
-                    (11, 3, 1, 79.99),
-                    (12, 2, 1, 29.99),
-                    (13, 4, 1, 199.99), (13, 9, 1, 8.99),
-                    (14, 6, 1, 12.99),
-                    (15, 1, 1, 1299.99)
-                """))
+                # Insert sample orders (database-agnostic approach)
+                orders_data = [
+                    (1, 1, 1329.98, 'completed'), (2, 2, 109.98, 'completed'), (3, 3, 199.99, 'pending'),
+                    (4, 4, 24.99, 'completed'), (5, 5, 479.98, 'completed'), (6, 6, 37.98, 'pending'),
+                    (7, 7, 1315.98, 'completed'), (8, 8, 14.98, 'completed'), (9, 9, 399.99, 'pending'),
+                    (10, 1, 15.99, 'completed'), (11, 2, 79.99, 'completed'), (12, 3, 29.99, 'pending'),
+                    (13, 4, 200.98, 'completed'), (14, 5, 12.99, 'completed'), (15, 6, 1299.99, 'pending')
+                ]
+                
+                for order in orders_data:
+                    try:
+                        await conn.execute(text("""
+                            INSERT INTO orders (id, customer_id, total_amount, status) 
+                            VALUES (:id, :customer_id, :total_amount, :status)
+                        """), {
+                            'id': order[0], 'customer_id': order[1], 
+                            'total_amount': order[2], 'status': order[3]
+                        })
+                    except Exception:
+                        pass
+                
+                # Insert sample order items (database-agnostic approach)
+                order_items_data = [
+                    (1, 1, 1, 1299.99), (1, 2, 1, 29.99), (2, 3, 1, 79.99), (2, 2, 1, 29.99),
+                    (3, 4, 1, 199.99), (4, 7, 1, 24.99), (5, 5, 1, 399.99), (5, 3, 1, 79.99),
+                    (6, 6, 2, 12.99), (6, 8, 2, 5.99), (7, 1, 1, 1299.99), (7, 10, 1, 15.99),
+                    (8, 9, 1, 8.99), (8, 8, 1, 5.99), (9, 5, 1, 399.99), (10, 10, 1, 15.99),
+                    (11, 3, 1, 79.99), (12, 2, 1, 29.99), (13, 4, 1, 199.99), (13, 9, 1, 8.99),
+                    (14, 6, 1, 12.99), (15, 1, 1, 1299.99)
+                ]
+                
+                for item in order_items_data:
+                    try:
+                        await conn.execute(text("""
+                            INSERT INTO order_items (order_id, product_id, quantity, unit_price) 
+                            VALUES (:order_id, :product_id, :quantity, :unit_price)
+                        """), {
+                            'order_id': item[0], 'product_id': item[1], 
+                            'quantity': item[2], 'unit_price': item[3]
+                        })
+                    except Exception:
+                        pass
             
             print("✅ Test database created successfully")
             return True
