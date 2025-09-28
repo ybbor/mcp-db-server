@@ -58,7 +58,7 @@ async def query_database(query: str) -> str:
             table_schemas[table['table_name']] = columns
         
         # Convert natural language to SQL
-        sql_query = await nl_converter.convert_to_sql(query, table_schemas)
+        sql_query = nl_converter.convert_to_sql(query, table_schemas)
         
         # Execute the query
         results = await db_manager.execute_safe_query(sql_query)
