@@ -281,12 +281,14 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 ## � Changelog
 
 ### v1.1.0 (2025-09-28) - Async Bug Fix
+
 - **🐛 Fixed**: Resolved `str can't be used in 'await' expression` error in MCP server
 - **🔧 Improved**: NLP query processing now works correctly with Claude Desktop integration
 - **✅ Enhanced**: Added comprehensive test database setup scripts
 - **🚀 Updated**: Docker image rebuilt with bug fixes and updated dependencies
 
 ### v1.0.0 (2025-09-25) - Initial Release
+
 - **🎉 Initial**: Full MCP Database Server implementation
 - **🌐 Added**: RESTful API with FastAPI
 - **🧠 Added**: Natural language to SQL conversion

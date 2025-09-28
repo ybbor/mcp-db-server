@@ -56,148 +56,244 @@ class MCPTestSuite:
         print("Creating test database with sample data...")
         
         try:
+            # Get database type to use appropriate SQL syntax
+            db_type = self.db_manager.database_type
+            
             async with self.db_manager.engine.begin() as conn:
-                # Create customers table (PostgreSQL compatible)
-                await conn.execute(text("""
-                    CREATE TABLE IF NOT EXISTS customers (
-                        id INTEGER PRIMARY KEY,
-                        first_name VARCHAR(255) NOT NULL,
-                        last_name VARCHAR(255) NOT NULL,
-                        email VARCHAR(255) UNIQUE NOT NULL,
-                        phone VARCHAR(255),
-                        address TEXT,
-                        city VARCHAR(255),
-                        state VARCHAR(255),
-                        zip_code VARCHAR(255)
-                    )
-                """))
+                # Create customers table (database-specific syntax)
+                if db_type == 'postgresql':
+                    await conn.execute(text("""
+                        CREATE TABLE IF NOT EXISTS customers (
+                            id SERIAL PRIMARY KEY,
+                            first_name VARCHAR(255) NOT NULL,
+                            last_name VARCHAR(255) NOT NULL,
+                            email VARCHAR(255) UNIQUE NOT NULL,
+                            phone VARCHAR(255),
+                            address TEXT,
+                            city VARCHAR(255),
+                            state VARCHAR(255),
+                            zip_code VARCHAR(255)
+                        )
+                    """))
+                else:
+                    await conn.execute(text("""
+                        CREATE TABLE IF NOT EXISTS customers (
+                            id INTEGER PRIMARY KEY,
+                            first_name VARCHAR(255) NOT NULL,
+                            last_name VARCHAR(255) NOT NULL,
+                            email VARCHAR(255) UNIQUE NOT NULL,
+                            phone VARCHAR(255),
+                            address TEXT,
+                            city VARCHAR(255),
+                            state VARCHAR(255),
+                            zip_code VARCHAR(255)
+                        )
+                    """))
                 
-                # Create products table (PostgreSQL compatible)
-                await conn.execute(text("""
-                    CREATE TABLE IF NOT EXISTS products (
-                        id INTEGER PRIMARY KEY,
-                        name VARCHAR(255) NOT NULL,
-                        description TEXT,
-                        price DECIMAL(10,2) NOT NULL,
-                        category VARCHAR(255),
-                        stock_quantity INTEGER DEFAULT 0
-                    )
-                """))
+                # Create products table (database-specific syntax)
+                if db_type == 'postgresql':
+                    await conn.execute(text("""
+                        CREATE TABLE IF NOT EXISTS products (
+                            id SERIAL PRIMARY KEY,
+                            name VARCHAR(255) NOT NULL,
+                            description TEXT,
+                            price DECIMAL(10,2) NOT NULL,
+                            category VARCHAR(255),
+                            stock_quantity INTEGER DEFAULT 0
+                        )
+                    """))
+                else:
+                    await conn.execute(text("""
+                        CREATE TABLE IF NOT EXISTS products (
+                            id INTEGER PRIMARY KEY,
+                            name VARCHAR(255) NOT NULL,
+                            description TEXT,
+                            price DECIMAL(10,2) NOT NULL,
+                            category VARCHAR(255),
+                            stock_quantity INTEGER DEFAULT 0
+                        )
+                    """))
                 
-                # Create orders table (PostgreSQL compatible)
-                await conn.execute(text("""
-                    CREATE TABLE IF NOT EXISTS orders (
-                        id INTEGER PRIMARY KEY,
-                        customer_id INTEGER,
-                        total_amount DECIMAL(10,2),
-                        status VARCHAR(255) DEFAULT 'pending'
-                    )
-                """))
+                # Create orders table (database-specific syntax)
+                if db_type == 'postgresql':
+                    await conn.execute(text("""
+                        CREATE TABLE IF NOT EXISTS orders (
+                            id SERIAL PRIMARY KEY,
+                            customer_id INTEGER,
+                            total_amount DECIMAL(10,2),
+                            status VARCHAR(255) DEFAULT 'pending'
+                        )
+                    """))
+                else:
+                    await conn.execute(text("""
+                        CREATE TABLE IF NOT EXISTS orders (
+                            id INTEGER PRIMARY KEY,
+                            customer_id INTEGER,
+                            total_amount DECIMAL(10,2),
+                            status VARCHAR(255) DEFAULT 'pending'
+                        )
+                    """))
                 
-                # Create order_items table (PostgreSQL compatible)
-                await conn.execute(text("""
-                    CREATE TABLE IF NOT EXISTS order_items (
-                        id INTEGER PRIMARY KEY,
-                        order_id INTEGER,
-                        product_id INTEGER,
-                        quantity INTEGER,
-                        unit_price DECIMAL(10,2)
-                    )
-                """))
+                # Create order_items table (database-specific syntax)
+                if db_type == 'postgresql':
+                    await conn.execute(text("""
+                        CREATE TABLE IF NOT EXISTS order_items (
+                            id SERIAL PRIMARY KEY,
+                            order_id INTEGER,
+                            product_id INTEGER,
+                            quantity INTEGER,
+                            unit_price DECIMAL(10,2)
+                        )
+                    """))
+                else:
+                    await conn.execute(text("""
+                        CREATE TABLE IF NOT EXISTS order_items (
+                            id INTEGER PRIMARY KEY,
+                            order_id INTEGER,
+                            product_id INTEGER,
+                            quantity INTEGER,
+                            unit_price DECIMAL(10,2)
+                        )
+                    """))
                 
-                # Insert sample customers (database-agnostic approach)
+                # Insert sample customers (database-specific approach)
                 customers_data = [
-                    (1, 'John', 'Doe', 'john.doe@email.com', '555-0101', 'New York', 'NY'),
-                    (2, 'Jane', 'Smith', 'jane.smith@email.com', '555-0102', 'Los Angeles', 'CA'),
-                    (3, 'Bob', 'Johnson', 'bob.johnson@email.com', '555-0103', 'Chicago', 'IL'),
-                    (4, 'Alice', 'Brown', 'alice.brown@email.com', '555-0104', 'Houston', 'TX'),
-                    (5, 'Charlie', 'Wilson', 'charlie.wilson@email.com', '555-0105', 'Phoenix', 'AZ'),
-                    (6, 'Eva', 'Davis', 'eva.davis@email.com', '555-0106', 'Philadelphia', 'PA'),
-                    (7, 'Frank', 'Miller', 'frank.miller@email.com', '555-0107', 'San Antonio', 'TX'),
-                    (8, 'Grace', 'Lee', 'grace.lee@email.com', '555-0108', 'San Diego', 'CA'),
-                    (9, 'Henry', 'Garcia', 'henry.garcia@email.com', '555-0109', 'Dallas', 'TX'),
-                    (10, 'Iris', 'Martinez', 'iris.martinez@email.com', '555-0110', 'San Jose', 'CA')
+                    ('John', 'Doe', 'john.doe@email.com', '555-0101', 'New York', 'NY'),
+                    ('Jane', 'Smith', 'jane.smith@email.com', '555-0102', 'Los Angeles', 'CA'),
+                    ('Bob', 'Johnson', 'bob.johnson@email.com', '555-0103', 'Chicago', 'IL'),
+                    ('Alice', 'Brown', 'alice.brown@email.com', '555-0104', 'Houston', 'TX'),
+                    ('Charlie', 'Wilson', 'charlie.wilson@email.com', '555-0105', 'Phoenix', 'AZ'),
+                    ('Eva', 'Davis', 'eva.davis@email.com', '555-0106', 'Philadelphia', 'PA'),
+                    ('Frank', 'Miller', 'frank.miller@email.com', '555-0107', 'San Antonio', 'TX'),
+                    ('Grace', 'Lee', 'grace.lee@email.com', '555-0108', 'San Diego', 'CA'),
+                    ('Henry', 'Garcia', 'henry.garcia@email.com', '555-0109', 'Dallas', 'TX'),
+                    ('Iris', 'Martinez', 'iris.martinez@email.com', '555-0110', 'San Jose', 'CA')
                 ]
                 
                 for customer in customers_data:
                     try:
-                        await conn.execute(text("""
-                            INSERT INTO customers (id, first_name, last_name, email, phone, city, state) 
-                            VALUES (:id, :first_name, :last_name, :email, :phone, :city, :state)
-                        """), {
-                            'id': customer[0], 'first_name': customer[1], 'last_name': customer[2],
-                            'email': customer[3], 'phone': customer[4], 'city': customer[5], 'state': customer[6]
-                        })
-                    except Exception:
+                        if db_type == 'postgresql':
+                            # PostgreSQL with SERIAL (auto-increment) - don't specify id
+                            await conn.execute(text("""
+                                INSERT INTO customers (first_name, last_name, email, phone, city, state) 
+                                VALUES (:first_name, :last_name, :email, :phone, :city, :state)
+                            """), {
+                                'first_name': customer[0], 'last_name': customer[1],
+                                'email': customer[2], 'phone': customer[3], 'city': customer[4], 'state': customer[5]
+                            })
+                        else:
+                            # SQLite with explicit IDs
+                            await conn.execute(text("""
+                                INSERT INTO customers (id, first_name, last_name, email, phone, city, state) 
+                                VALUES (:id, :first_name, :last_name, :email, :phone, :city, :state)
+                            """), {
+                                'id': customers_data.index(customer) + 1, 'first_name': customer[0], 'last_name': customer[1],
+                                'email': customer[2], 'phone': customer[3], 'city': customer[4], 'state': customer[5]
+                            })
+                    except Exception as e:
+                        print(f"Warning: Failed to insert customer {customer[0]} {customer[1]}: {e}")
                         pass  # Ignore duplicate key errors
                 
-                # Insert sample products (database-agnostic approach)
+                # Insert sample products (database-specific approach)
                 products_data = [
-                    (1, 'Laptop Pro', 'High-performance laptop', 1299.99, 'Electronics', 50),
-                    (2, 'Wireless Mouse', 'Ergonomic wireless mouse', 29.99, 'Electronics', 100),
-                    (3, 'Mechanical Keyboard', 'RGB mechanical keyboard', 79.99, 'Electronics', 75),
-                    (4, 'Office Chair', 'Ergonomic office chair', 199.99, 'Furniture', 25),
-                    (5, 'Standing Desk', 'Adjustable standing desk', 399.99, 'Furniture', 15),
-                    (6, 'Coffee Mug', 'Ceramic coffee mug', 12.99, 'Kitchen', 200),
-                    (7, 'Water Bottle', 'Stainless steel water bottle', 24.99, 'Kitchen', 150),
-                    (8, 'Notebook', 'Spiral notebook', 5.99, 'Office', 300),
-                    (9, 'Pen Set', '12-pack ballpoint pens', 8.99, 'Office', 250),
-                    (10, 'USB Cable', 'USB-C charging cable', 15.99, 'Electronics', 80)
+                    ('Laptop Pro', 'High-performance laptop', 1299.99, 'Electronics', 50),
+                    ('Wireless Mouse', 'Ergonomic wireless mouse', 29.99, 'Electronics', 100),
+                    ('Mechanical Keyboard', 'RGB mechanical keyboard', 79.99, 'Electronics', 75),
+                    ('Office Chair', 'Ergonomic office chair', 199.99, 'Furniture', 25),
+                    ('Standing Desk', 'Adjustable standing desk', 399.99, 'Furniture', 15),
+                    ('Coffee Mug', 'Ceramic coffee mug', 12.99, 'Kitchen', 200),
+                    ('Water Bottle', 'Stainless steel water bottle', 24.99, 'Kitchen', 150),
+                    ('Notebook', 'Spiral notebook', 5.99, 'Office', 300),
+                    ('Pen Set', '12-pack ballpoint pens', 8.99, 'Office', 250),
+                    ('USB Cable', 'USB-C charging cable', 15.99, 'Electronics', 80)
                 ]
                 
                 for product in products_data:
                     try:
-                        await conn.execute(text("""
-                            INSERT INTO products (id, name, description, price, category, stock_quantity) 
-                            VALUES (:id, :name, :description, :price, :category, :stock_quantity)
-                        """), {
-                            'id': product[0], 'name': product[1], 'description': product[2],
-                            'price': product[3], 'category': product[4], 'stock_quantity': product[5]
-                        })
-                    except Exception:
+                        if db_type == 'postgresql':
+                            # PostgreSQL with SERIAL (auto-increment) - don't specify id
+                            await conn.execute(text("""
+                                INSERT INTO products (name, description, price, category, stock_quantity) 
+                                VALUES (:name, :description, :price, :category, :stock_quantity)
+                            """), {
+                                'name': product[0], 'description': product[1], 'price': product[2],
+                                'category': product[3], 'stock_quantity': product[4]
+                            })
+                        else:
+                            # SQLite with explicit IDs
+                            await conn.execute(text("""
+                                INSERT INTO products (id, name, description, price, category, stock_quantity) 
+                                VALUES (:id, :name, :description, :price, :category, :stock_quantity)
+                            """), {
+                                'id': products_data.index(product) + 1, 'name': product[0], 'description': product[1], 
+                                'price': product[2], 'category': product[3], 'stock_quantity': product[4]
+                            })
+                    except Exception as e:
+                        print(f"Warning: Failed to insert product {product[0]}: {e}")
                         pass
                 
-                # Insert sample orders (database-agnostic approach)
+                # Insert sample orders (simplified for database compatibility)
                 orders_data = [
-                    (1, 1, 1329.98, 'completed'), (2, 2, 109.98, 'completed'), (3, 3, 199.99, 'pending'),
-                    (4, 4, 24.99, 'completed'), (5, 5, 479.98, 'completed'), (6, 6, 37.98, 'pending'),
-                    (7, 7, 1315.98, 'completed'), (8, 8, 14.98, 'completed'), (9, 9, 399.99, 'pending'),
-                    (10, 1, 15.99, 'completed'), (11, 2, 79.99, 'completed'), (12, 3, 29.99, 'pending'),
-                    (13, 4, 200.98, 'completed'), (14, 5, 12.99, 'completed'), (15, 6, 1299.99, 'pending')
+                    (1329.98, 'completed'), (109.98, 'completed'), (199.99, 'pending'),
+                    (24.99, 'completed'), (479.98, 'completed'), (37.98, 'pending'),
+                    (1315.98, 'completed'), (14.98, 'completed'), (399.99, 'pending'),
+                    (15.99, 'completed'), (79.99, 'completed'), (29.99, 'pending'),
+                    (200.98, 'completed'), (12.99, 'completed'), (1299.99, 'pending')
                 ]
                 
-                for order in orders_data:
+                for i, order in enumerate(orders_data):
                     try:
-                        await conn.execute(text("""
-                            INSERT INTO orders (id, customer_id, total_amount, status) 
-                            VALUES (:id, :customer_id, :total_amount, :status)
-                        """), {
-                            'id': order[0], 'customer_id': order[1], 
-                            'total_amount': order[2], 'status': order[3]
-                        })
-                    except Exception:
+                        customer_id = (i % 10) + 1  # Assign to customers 1-10 cyclically
+                        if db_type == 'postgresql':
+                            # PostgreSQL with SERIAL - don't specify id, use LIMIT for customer_id
+                            await conn.execute(text("""
+                                INSERT INTO orders (customer_id, total_amount, status) 
+                                VALUES (:customer_id, :total_amount, :status)
+                            """), {
+                                'customer_id': min(customer_id, 3),  # Only reference first 3 customers to be safe
+                                'total_amount': order[0], 'status': order[1]
+                            })
+                        else:
+                            # SQLite with explicit IDs
+                            await conn.execute(text("""
+                                INSERT INTO orders (id, customer_id, total_amount, status) 
+                                VALUES (:id, :customer_id, :total_amount, :status)
+                            """), {
+                                'id': i + 1, 'customer_id': customer_id,
+                                'total_amount': order[0], 'status': order[1]
+                            })
+                    except Exception as e:
+                        print(f"Warning: Failed to insert order {i + 1}: {e}")
                         pass
                 
-                # Insert sample order items (database-agnostic approach)
-                order_items_data = [
-                    (1, 1, 1, 1299.99), (1, 2, 1, 29.99), (2, 3, 1, 79.99), (2, 2, 1, 29.99),
-                    (3, 4, 1, 199.99), (4, 7, 1, 24.99), (5, 5, 1, 399.99), (5, 3, 1, 79.99),
-                    (6, 6, 2, 12.99), (6, 8, 2, 5.99), (7, 1, 1, 1299.99), (7, 10, 1, 15.99),
-                    (8, 9, 1, 8.99), (8, 8, 1, 5.99), (9, 5, 1, 399.99), (10, 10, 1, 15.99),
-                    (11, 3, 1, 79.99), (12, 2, 1, 29.99), (13, 4, 1, 199.99), (13, 9, 1, 8.99),
-                    (14, 6, 1, 12.99), (15, 1, 1, 1299.99)
+                # Insert a few sample order items (simplified to avoid foreign key issues)
+                simple_order_items = [
+                    (1, 1, 1, 1299.99), (1, 2, 1, 29.99), (2, 3, 1, 79.99), 
+                    (2, 2, 1, 29.99), (3, 1, 1, 199.99)
                 ]
                 
-                for item in order_items_data:
+                for item in simple_order_items:
                     try:
-                        await conn.execute(text("""
-                            INSERT INTO order_items (order_id, product_id, quantity, unit_price) 
-                            VALUES (:order_id, :product_id, :quantity, :unit_price)
-                        """), {
-                            'order_id': item[0], 'product_id': item[1], 
-                            'quantity': item[2], 'unit_price': item[3]
-                        })
-                    except Exception:
+                        if db_type == 'postgresql':
+                            # PostgreSQL with SERIAL - don't specify id
+                            await conn.execute(text("""
+                                INSERT INTO order_items (order_id, product_id, quantity, unit_price) 
+                                VALUES (:order_id, :product_id, :quantity, :unit_price)
+                            """), {
+                                'order_id': item[0], 'product_id': item[1], 
+                                'quantity': item[2], 'unit_price': item[3]
+                            })
+                        else:
+                            # SQLite with explicit IDs
+                            await conn.execute(text("""
+                                INSERT INTO order_items (id, order_id, product_id, quantity, unit_price) 
+                                VALUES (:id, :order_id, :product_id, :quantity, :unit_price)
+                            """), {
+                                'id': simple_order_items.index(item) + 1, 'order_id': item[0], 'product_id': item[1], 
+                                'quantity': item[2], 'unit_price': item[3]
+                            })
+                    except Exception as e:
+                        print(f"Warning: Failed to insert order item: {e}")
                         pass
             
             print("✅ Test database created successfully")

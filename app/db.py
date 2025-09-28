@@ -69,15 +69,33 @@ class DatabaseManager:
         return db_url
     
     def _detect_database_type(self) -> str:
-        """Detect database type from URL"""
-        if "postgresql" in self.database_url or "postgres" in self.database_url:
+        """Detect database type from URL scheme"""
+        # Parse the URL scheme to determine database type
+        url_lower = self.database_url.lower()
+        
+        # Extract the scheme part (before ://)
+        if '://' in url_lower:
+            scheme = url_lower.split('://')[0]
+        else:
+            scheme = url_lower
+        
+        # Check scheme for database type
+        if scheme.startswith('postgresql') or scheme.startswith('postgres'):
             return "postgresql"
-        elif "mysql" in self.database_url:
+        elif scheme.startswith('mysql'):
             return "mysql"
-        elif "sqlite" in self.database_url:
+        elif scheme.startswith('sqlite'):
             return "sqlite"
         else:
-            return "postgresql"  # Default fallback
+            # Fallback: check for keywords in scheme only (not filename)
+            if 'postgresql' in scheme or 'postgres' in scheme:
+                return "postgresql"
+            elif 'mysql' in scheme:
+                return "mysql"
+            elif 'sqlite' in scheme:
+                return "sqlite"
+            else:
+                return "postgresql"  # Default fallback
     
     def _initialize_engine(self):
         """Initialize SQLAlchemy async engine"""
