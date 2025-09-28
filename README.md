@@ -278,7 +278,22 @@ curl -X POST "http://localhost:8000/mcp/query" \
 
 This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+## � Changelog
+
+### v1.1.0 (2025-09-28) - Async Bug Fix
+- **🐛 Fixed**: Resolved `str can't be used in 'await' expression` error in MCP server
+- **🔧 Improved**: NLP query processing now works correctly with Claude Desktop integration
+- **✅ Enhanced**: Added comprehensive test database setup scripts
+- **🚀 Updated**: Docker image rebuilt with bug fixes and updated dependencies
+
+### v1.0.0 (2025-09-25) - Initial Release
+- **🎉 Initial**: Full MCP Database Server implementation
+- **🌐 Added**: RESTful API with FastAPI
+- **🧠 Added**: Natural language to SQL conversion
+- **🐳 Added**: Docker containerization and deployment
+- **📊 Added**: Multi-database support (PostgreSQL, MySQL, SQLite)
+
+## �🙏 Acknowledgments
 
 - [FastAPI](https://fastapi.tiangolo.com/) for the excellent web framework
 - [HuggingFace Transformers](https://huggingface.co/transformers/) for NL to SQL capabilities

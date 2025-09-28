@@ -96,7 +96,7 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "mcp-db-server",
-        "version": "1.0.0",
+        "version": "1.1.0",
         "database_connected": True  # Will be updated with actual DB check
     }
 
