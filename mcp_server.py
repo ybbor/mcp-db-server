@@ -203,7 +203,7 @@ async def connect_to_database(database_url: str) -> str:
         # Validate URL format
         supported_types = ['sqlite+aiosqlite://', 'postgresql+asyncpg://', 'mysql+aiomysql://']
         if not any(database_url.startswith(db_type) for db_type in supported_types):
-            return f"❌ Unsupported database URL format. Supported: {', '.join(supported_types)}"
+            return f"ERROR: Unsupported database URL format. Supported: {', '.join(supported_types)}"
         
         # Store current URL and update environment
         previous_url = os.getenv('DATABASE_URL', 'None')
@@ -218,7 +218,7 @@ async def connect_to_database(database_url: str) -> str:
             # Restore previous URL on failure
             if previous_url != 'None':
                 os.environ['DATABASE_URL'] = previous_url
-            return f"❌ Failed to connect to database: {database_url}"
+            return f"Failed to connect to database: {database_url}"
         
         # If successful, update the global manager
         db_manager = new_db_manager
@@ -227,10 +227,10 @@ async def connect_to_database(database_url: str) -> str:
         tables = await db_manager.list_tables()
         table_info = [f"  - {table['table_name']} ({table['column_count']} columns)" for table in tables]
         
-        response = f"✅ Successfully connected to database!\n"
-        response += f"🔗 Database URL: {database_url}\n"
-        response += f"📊 Database Type: {db_manager.database_type}\n"
-        response += f"📋 Available Tables ({len(tables)}):\n"
+        response = f"Successfully connected to database!\n"
+        response += f" Database URL: {database_url}\n"
+        response += f" Database Type: {db_manager.database_type}\n"
+        response += f" Available Tables ({len(tables)}):\n"
         response += "\n".join(table_info) if table_info else "  No tables found"
         
         logger.info(f"Dynamic database connection successful: {database_url}")
@@ -241,7 +241,7 @@ async def connect_to_database(database_url: str) -> str:
         if 'previous_url' in locals() and previous_url != 'None':
             os.environ['DATABASE_URL'] = previous_url
         
-        error_msg = f"❌ Error connecting to database: {str(e)}"
+        error_msg = f" Error connecting to database: {str(e)}"
         logger.error(f"Dynamic database connection failed: {error_msg}")
         return error_msg
 
@@ -254,7 +254,7 @@ async def get_connection_examples() -> str:
         Examples of connection strings for various databases
     """
     examples = """
-🔗 **Database Connection Examples:**
+**Database Connection Examples:**
 
 **SQLite (Local Files):**
 • sqlite+aiosqlite:///students.db
@@ -292,12 +292,12 @@ async def get_current_database_info() -> str:
     """
     try:
         if not db_manager:
-            return "❌ No database connection established"
+            return "ERROR: No database connection established"
         
         # Test current connection
         is_connected = await db_manager.test_connection()
         if not is_connected:
-            return "❌ Current database connection is not working"
+            return "ERROR: Current database connection is not working"
         
         # Get database info
         current_url = os.getenv('DATABASE_URL', 'Unknown')
@@ -307,12 +307,12 @@ async def get_current_database_info() -> str:
         total_tables = len(tables)
         total_columns = sum(table['column_count'] for table in tables)
         
-        response = f"📊 **Current Database Information:**\n\n"
-        response += f"🔗 **Connection URL:** {current_url}\n"
-        response += f"🏷️  **Database Type:** {db_manager.database_type}\n"
-        response += f"✅ **Status:** Connected\n"
-        response += f"📋 **Tables:** {total_tables}\n"
-        response += f"📊 **Total Columns:** {total_columns}\n\n"
+        response = f"**Current Database Information:**\n\n"
+        response += f"**Connection URL:** {current_url}\n"
+        response += f"**Database Type:** {db_manager.database_type}\n"
+        response += f"**Status:** Connected\n"
+        response += f"**Tables:** {total_tables}\n"
+        response += f"**Total Columns:** {total_columns}\n\n"
         
         if tables:
             response += "**Table Details:**\n"
@@ -324,13 +324,13 @@ async def get_current_database_info() -> str:
         return response
         
     except Exception as e:
-        return f"❌ Error getting database info: {str(e)}"
+        return f"ERROR: Error getting database info: {str(e)}"
 
 @mcp.tool()
 async def execute_unsafe_sql(sql_query: str) -> str:
     """
     Execute any SQL query without safety restrictions (allows CREATE, DELETE, INSERT, DROP, etc.).
-    ⚠️ WARNING: This tool can modify or delete data. Use with caution!
+    WARNING: This tool can modify or delete data. Use with caution!
     
     Args:
         sql_query: Any SQL query including CREATE, INSERT, UPDATE, DELETE, DROP operations
@@ -342,12 +342,12 @@ async def execute_unsafe_sql(sql_query: str) -> str:
         results = await db_manager.execute_unsafe_query(sql_query)
         
         if not results:
-            return "✅ Query executed successfully (no results returned)"
+            return "Query executed successfully (no results returned)"
         
         # Check if this is a modification operation
         if len(results) == 1 and 'query_type' in results[0] and results[0]['query_type'] == 'modification':
             affected_rows = results[0].get('affected_rows', 0)
-            return f"✅ Query executed successfully. Affected rows: {affected_rows}"
+            return f"Query executed successfully. Affected rows: {affected_rows}"
         
         # Format results for display
         if isinstance(results, list) and len(results) > 0:
@@ -359,10 +359,10 @@ async def execute_unsafe_sql(sql_query: str) -> str:
                 response += "\n"
             return response
         else:
-            return "✅ Query executed successfully (no data returned)"
+            return "Query executed successfully (no data returned)"
             
     except Exception as e:
-        return f"❌ Error executing unsafe SQL: {str(e)}"
+        return f"ERROR: Error executing unsafe SQL: {str(e)}"
 
 @mcp.tool()
 async def create_table(table_name: str, columns_definition: str) -> str:
@@ -379,10 +379,10 @@ async def create_table(table_name: str, columns_definition: str) -> str:
     try:
         create_query = f"CREATE TABLE {table_name} ({columns_definition})"
         results = await db_manager.execute_unsafe_query(create_query)
-        return f"✅ Table '{table_name}' created successfully!"
+        return f"Table '{table_name}' created successfully!"
         
     except Exception as e:
-        return f"❌ Error creating table: {str(e)}"
+        return f"ERROR: Error creating table: {str(e)}"
 
 @mcp.tool()
 async def insert_data(table_name: str, columns: str, values: str) -> str:
@@ -401,16 +401,16 @@ async def insert_data(table_name: str, columns: str, values: str) -> str:
         insert_query = f"INSERT INTO {table_name} ({columns}) VALUES ({values})"
         results = await db_manager.execute_unsafe_query(insert_query)
         affected_rows = results[0].get('affected_rows', 0) if results else 0
-        return f"✅ Inserted {affected_rows} row(s) into '{table_name}'"
+        return f"Inserted {affected_rows} row(s) into '{table_name}'"
         
     except Exception as e:
-        return f"❌ Error inserting data: {str(e)}"
+        return f"ERROR: Error inserting data: {str(e)}"
 
 @mcp.tool()
 async def delete_data(table_name: str, where_condition: str = "") -> str:
     """
     Delete data from a table.
-    ⚠️ WARNING: This will permanently delete data!
+    WARNING: This will permanently delete data!
     
     Args:
         table_name: Name of the table to delete from
@@ -427,10 +427,10 @@ async def delete_data(table_name: str, where_condition: str = "") -> str:
             
         results = await db_manager.execute_unsafe_query(delete_query)
         affected_rows = results[0].get('affected_rows', 0) if results else 0
-        return f"✅ Deleted {affected_rows} row(s) from '{table_name}'"
+        return f"Deleted {affected_rows} row(s) from '{table_name}'"
         
     except Exception as e:
-        return f"❌ Error deleting data: {str(e)}"
+        return f"ERROR: Error deleting data: {str(e)}"
 
 @mcp.tool()
 async def update_data(table_name: str, set_clause: str, where_condition: str = "") -> str:
@@ -453,10 +453,10 @@ async def update_data(table_name: str, set_clause: str, where_condition: str = "
             
         results = await db_manager.execute_unsafe_query(update_query)
         affected_rows = results[0].get('affected_rows', 0) if results else 0
-        return f"✅ Updated {affected_rows} row(s) in '{table_name}'"
+        return f"Updated {affected_rows} row(s) in '{table_name}'"
         
     except Exception as e:
-        return f"❌ Error updating data: {str(e)}"
+        return f"ERROR: Error updating data: {str(e)}"
 
 @mcp.resource("database://tables")
 async def get_database_tables() -> str:

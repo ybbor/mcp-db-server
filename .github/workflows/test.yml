@@ -138,7 +138,7 @@ jobs:
               
               # Test connection
               assert await db.test_connection(), 'PostgreSQL connection failed'
-              print('✅ PostgreSQL connection successful')
+              print('PostgreSQL connection successful')
               
               # Test listing tables
               tables = await db.list_tables()
@@ -151,15 +151,15 @@ jobs:
               # Test describe table
               user_schema = await db.describe_table('users')
               assert len(user_schema) > 0, 'users table schema is empty'
-              print(f'✅ Users table schema: {len(user_schema)} columns')
+              print(f'Users table schema: {len(user_schema)} columns')
               
               # Test query execution
               result = await db.execute_safe_query('SELECT COUNT(*) as count FROM users')
               assert len(result) > 0, 'Query returned no results'
               assert result[0]['count'] == 3, 'Expected 3 users'
-              print('✅ Query execution successful')
+              print('Query execution successful')
               
-              print('✅ PostgreSQL tests completed successfully')
+              print('PostgreSQL tests completed successfully')
 
           async def test_mysql():
               print('=== Testing MySQL ===')
@@ -171,7 +171,7 @@ jobs:
               
               # Test connection
               assert await db.test_connection(), 'MySQL connection failed'
-              print('✅ MySQL connection successful')
+              print('MySQL connection successful')
               
               # Test listing tables
               tables = await db.list_tables()
@@ -192,7 +192,7 @@ jobs:
           async def main():
               await test_postgresql()
               await test_mysql()
-              print('🎉 All database tests passed!')
+              print('All database tests passed!')
 
           asyncio.run(main())
           "

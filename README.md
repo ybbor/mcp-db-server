@@ -5,7 +5,7 @@
 
 An MCP (Model Context Protocol) server that exposes relational databases (PostgreSQL/MySQL) to AI agents with natural language query support. Transform natural language questions into SQL queries and get structured results.
 
-## 🚀 Features
+## Features
 
 - **Multi-Database Support**: Works with PostgreSQL and MySQL
 - **Natural Language to SQL**: Convert plain English queries to SQL using HuggingFace transformers
@@ -15,7 +15,7 @@ An MCP (Model Context Protocol) server that exposes relational databases (Postgr
 - **Production Ready**: Health checks, logging, and error handling
 - **AI Agent Friendly**: Designed specifically for AI agent integration
 
-## 📋 API Endpoints
+## API Endpoints
 
 | Endpoint                          | Method | Description                                  |
 | --------------------------------- | ------ | -------------------------------------------- |
@@ -25,7 +25,7 @@ An MCP (Model Context Protocol) server that exposes relational databases (Postgr
 | `/mcp/query`                      | POST   | Execute natural language queries             |
 | `/mcp/tables/{table_name}/sample` | GET    | Get sample data from a table                 |
 
-## 🏃 Quick Start
+## Quick Start
 
 ### Option 1: Docker Compose (Recommended)
 
@@ -81,7 +81,7 @@ An MCP (Model Context Protocol) server that exposes relational databases (Postgr
    python -m app.server
    ```
 
-## 📊 Sample Database
+## Sample Database
 
 The project includes a sample database with realistic e-commerce data:
 
@@ -90,7 +90,7 @@ The project includes a sample database with realistic e-commerce data:
 - **order_items**: Individual items within orders
 - **order_summary**: View combining order and customer data
 
-## 🤖 Natural Language Query Examples
+## Natural Language Query Examples
 
 The server can understand various types of natural language queries:
 
@@ -116,7 +116,7 @@ curl -X POST "http://localhost:8000/mcp/query" \
   -d '{"nl_query": "show recent orders from last week"}'
 ```
 
-## 🔧 Configuration
+## Configuration
 
 ### Environment Variables
 
@@ -144,7 +144,7 @@ DATABASE_URL=mysql+pymysql://user:pass@localhost:3306/mydb
 DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/mydb?sslmode=require
 ```
 
-## 🛡️ Security Features
+## Security Features
 
 - **Read-Only Operations**: Only SELECT queries are allowed
 - **Query Validation**: Automatic detection and blocking of dangerous SQL operations
@@ -152,7 +152,7 @@ DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/mydb?sslmode=require
 - **Input Sanitization**: Protection against SQL injection
 - **Safe Defaults**: Secure configuration out of the box
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 mcp-db-server/
@@ -170,7 +170,7 @@ mcp-db-server/
 └── README.md               # This file
 ```
 
-## 🔄 Model Context Protocol (MCP) Integration
+## Model Context Protocol (MCP) Integration
 
 This server is designed to work seamlessly with MCP-compatible AI agents:
 
@@ -179,7 +179,7 @@ This server is designed to work seamlessly with MCP-compatible AI agents:
 3. **Error Handling**: Consistent error messages and status codes
 4. **Documentation**: OpenAPI/Swagger documentation available at `/docs`
 
-## 🚢 Deployment
+## Deployment
 
 ### Docker Hub
 
@@ -236,7 +236,7 @@ spec:
   type: LoadBalancer
 ```
 
-## 🧪 Testing
+## Testing
 
 ### Run Tests Locally
 
@@ -266,7 +266,7 @@ curl -X POST "http://localhost:8000/mcp/query" \
   -d '{"nl_query": "show me all customers from California"}'
 ```
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
@@ -274,7 +274,7 @@ curl -X POST "http://localhost:8000/mcp/query" \
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## 📝 License
+## License
 
 This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
 
@@ -282,31 +282,31 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 
 ### v1.1.0 (2025-09-28) - Async Bug Fix
 
-- **🐛 Fixed**: Resolved `str can't be used in 'await' expression` error in MCP server
-- **🔧 Improved**: NLP query processing now works correctly with Claude Desktop integration
-- **✅ Enhanced**: Added comprehensive test database setup scripts
-- **🚀 Updated**: Docker image rebuilt with bug fixes and updated dependencies
+- **Fixed**: Resolved `str can't be used in 'await' expression` error in MCP server
+- **Improved**: NLP query processing now works correctly with Claude Desktop integration
+- **Enhanced**: Added comprehensive test database setup scripts
+- **Updated**: Docker image rebuilt with bug fixes and updated dependencies
 
 ### v1.0.0 (2025-09-25) - Initial Release
 
-- **🎉 Initial**: Full MCP Database Server implementation
-- **🌐 Added**: RESTful API with FastAPI
-- **🧠 Added**: Natural language to SQL conversion
-- **🐳 Added**: Docker containerization and deployment
-- **📊 Added**: Multi-database support (PostgreSQL, MySQL, SQLite)
+- **Initial**: Full MCP Database Server implementation
+- **Added**: RESTful API with FastAPI
+- **Added**: Natural language to SQL conversion
+- **Added**: Docker containerization and deployment
+- **Added**: Multi-database support (PostgreSQL, MySQL, SQLite)
 
-## �🙏 Acknowledgments
+## Acknowledgments
 
 - [FastAPI](https://fastapi.tiangolo.com/) for the excellent web framework
 - [HuggingFace Transformers](https://huggingface.co/transformers/) for NL to SQL capabilities
 - [SQLAlchemy](https://sqlalchemy.org/) for database abstraction
 - The Model Context Protocol (MCP) community
 
-## 📞 Support
+## Support
 
-- 🐛 [Report Issues](https://github.com/Souhar-dya/mcp-db-server/issues)
-- 💬 [Discussions](https://github.com/Souhar-dya/mcp-db-server/discussions)
-- 📚 [Documentation](https://github.com/Souhar-dya/mcp-db-server/wiki)
+- [Report Issues](https://github.com/Souhar-dya/mcp-db-server/issues)
+- [Discussions](https://github.com/Souhar-dya/mcp-db-server/discussions)
+- [Documentation](https://github.com/Souhar-dya/mcp-db-server/wiki)
 
 ---
 

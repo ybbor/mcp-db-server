@@ -35,7 +35,7 @@ class MCPTestSuite:
         
     async def setup(self):
         """Set up test environment and components"""
-        print("🏗️ Setting up test environment...")
+        print("Setting up test environment...")
         
         # Set environment variable
         os.environ['DATABASE_URL'] = self.database_url
@@ -296,16 +296,16 @@ class MCPTestSuite:
                         print(f"Warning: Failed to insert order item: {e}")
                         pass
             
-            print("✅ Test database created successfully")
+            print("Test database created successfully")
             return True
             
         except Exception as e:
-            print(f"❌ Error creating test data: {e}")
+            print(f"ERROR: Error creating test data: {e}")
             return False
     
     async def test_async_fix(self):
         """Test that the async bug is fixed (no await on synchronous method)"""
-        print("\n🔧 Testing Async Bug Fix...")
+        print("\nTesting Async Bug Fix...")
         
         try:
             # Get table schemas for context
@@ -317,7 +317,7 @@ class MCPTestSuite:
             
             # Test the FIXED line (no await on non-async method)
             query = "show me all customers"
-            sql_query = self.nl_converter.convert_to_sql(query, table_schemas)  # ✅ Fixed: No await
+            sql_query = self.nl_converter.convert_to_sql(query, table_schemas)  # FIXED: No await
             
             # Execute the generated query
             results = await self.db_manager.execute_safe_query(sql_query, limit=3)
@@ -403,7 +403,7 @@ class MCPTestSuite:
     
     async def test_natural_language_queries(self):
         """Test natural language to SQL conversion and execution"""
-        print("\n🗣️ Testing Natural Language Queries...")
+        print("\nTesting Natural Language Queries...")
         
         # Get table schemas for context
         tables = await self.db_manager.list_tables()
@@ -465,7 +465,7 @@ class MCPTestSuite:
         for dangerous_query, description in dangerous_queries:
             try:
                 await self.db_manager.execute_safe_query(dangerous_query)
-                print(f"   ❌ SECURITY BREACH: {description} was allowed!")
+                print(f"   SECURITY BREACH: {description} was allowed!")
                 errors.append(f"Security breach: {description}")
             except ValueError as e:
                 if "unsafe operations" in str(e).lower():
@@ -576,7 +576,7 @@ class MCPTestSuite:
         print("=" * 70)
         
         for category, results in overall_results.items():
-            status = " PASS" if results['passed'] else "❌ FAIL"
+            status = "PASS" if results['passed'] else "FAIL"
             print(f"{category:<30} {status}")
             print(f"   {results['summary']}")
             

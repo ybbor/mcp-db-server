@@ -65,37 +65,25 @@ class DatabaseManager:
             database = os.getenv("DB_NAME", "postgres")
             
             db_url = f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{database}"
+        else:
+            # Convert standard PostgreSQL URL to async format for compatibility
+            if db_url.startswith("postgresql://"):
+                db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+            elif db_url.startswith("mysql://"):
+                db_url = db_url.replace("mysql://", "mysql+aiomysql://", 1)
         
         return db_url
     
     def _detect_database_type(self) -> str:
-        """Detect database type from URL scheme"""
-        # Parse the URL scheme to determine database type
-        url_lower = self.database_url.lower()
-        
-        # Extract the scheme part (before ://)
-        if '://' in url_lower:
-            scheme = url_lower.split('://')[0]
-        else:
-            scheme = url_lower
-        
-        # Check scheme for database type
-        if scheme.startswith('postgresql') or scheme.startswith('postgres'):
+        """Detect database type from URL"""
+        if "postgresql" in self.database_url or "postgres" in self.database_url:
             return "postgresql"
-        elif scheme.startswith('mysql'):
+        elif "mysql" in self.database_url:
             return "mysql"
-        elif scheme.startswith('sqlite'):
+        elif "sqlite" in self.database_url:
             return "sqlite"
         else:
-            # Fallback: check for keywords in scheme only (not filename)
-            if 'postgresql' in scheme or 'postgres' in scheme:
-                return "postgresql"
-            elif 'mysql' in scheme:
-                return "mysql"
-            elif 'sqlite' in scheme:
-                return "sqlite"
-            else:
-                return "postgresql"  # Default fallback
+            return "postgresql"  # Default fallback
     
     def _initialize_engine(self):
         """Initialize SQLAlchemy async engine"""
