@@ -8,9 +8,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
 # Install system dependencies for building
+# + unixodbc-dev is needed to compile pyodbc wheels
 RUN apt-get update && apt-get install -y \
     build-essential \
     git \
+    curl \
+    gnupg \
+    unixodbc-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Create and activate virtual environment
@@ -22,6 +26,7 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 COPY requirements.txt .
 
 # Install Python dependencies
+# Make sure requirements.txt includes: pyodbc, sqlalchemy[asyncio], asyncpg, aiomysql, aiosqlite
 RUN pip install --upgrade pip && \
     pip install -r requirements.txt
 
@@ -34,9 +39,20 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     VIRTUAL_ENV=/opt/venv \
     PATH="/opt/venv/bin:$PATH"
 
-# Install runtime system dependencies
-RUN apt-get update && apt-get install -y \
-    sqlite3 \
+# --- MSSQL ODBC DRIVER 18 RUNTIME DEPS ---
+# Add Microsoft packages repo (Debian 12 bookworm for python:3.11-slim as of 2025)
+RUN apt-get update && apt-get install -y curl gnupg apt-transport-https && \
+    curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://packages.microsoft.com/debian/12/prod bookworm main" > /etc/apt/sources.list.d/microsoft-prod.list && \
+    apt-get update && \
+    ACCEPT_EULA=Y apt-get install -y \
+      msodbcsql18 \
+      # optional but handy for debugging sqlcmd/bcp:
+      mssql-tools18 \
+      # ODBC driver manager used by msodbcsql18:
+      unixodbc \
+      # your existing runtime deps:
+      sqlite3 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy virtual environment from builder
@@ -56,7 +72,7 @@ RUN mkdir -p /data && chown -R mcp:mcp /app /data
 # Switch to non-root user
 USER mcp
 
-# Set default database path
+# Default database path (override with MSSQL_URL or DB_* for SQL Server)
 ENV DATABASE_URL=sqlite+aiosqlite:///data/default.db
 
 # Health check
