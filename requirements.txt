@@ -30,3 +30,6 @@ structlog>=23.0.0
 
 # Security
 cryptography>=41.0.0
+
+# Microsoft SQL Server (MSSQL) support
+pyodbc>=5.1.0
