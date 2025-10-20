@@ -14,24 +14,24 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-# Conditionally import database drivers
+# Conditionally import database drivers (optional; SQLAlchemy handles most)
 try:
-    import asyncpg
+    import asyncpg  # postgres async driver
 except ImportError:
     asyncpg = None
 
 try:
-    import pymysql
+    import pymysql  # mysql driver
 except ImportError:
     pymysql = None
 
 try:
-    import aiosqlite
+    import aiosqlite  # sqlite async driver
 except ImportError:
     aiosqlite = None
 
-from sqlalchemy import create_engine, text, MetaData, inspect
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
 
 logger = logging.getLogger(__name__)
@@ -43,45 +43,91 @@ class DatabaseManager:
         self.database_url = self._get_database_url()
         self.database_type = self._detect_database_type()
         self.engine = None
-        self.async_session_maker = None
         self._initialize_engine()
     
     def _get_database_url(self) -> str:
-        """Get database URL from environment variables"""
-        # Try different environment variable patterns
+        """Get database URL from environment variables, normalized for async usage"""
+        # Priority: explicit full URLs
         db_url = (
-            os.getenv("DATABASE_URL") or
-            os.getenv("DB_URL") or
-            os.getenv("POSTGRES_URL") or
-            os.getenv("MYSQL_URL")
+            os.getenv("DATABASE_URL")
+            or os.getenv("DB_URL")
+            or os.getenv("POSTGRES_URL")
+            or os.getenv("MYSQL_URL")
+            or os.getenv("MSSQL_URL")
+            or os.getenv("SQLSERVER_URL")
         )
-        
+
+        # If no full URL, try to construct from discrete parts
         if not db_url:
-            # Default to PostgreSQL with common defaults
+            db_type = (os.getenv("DB_TYPE") or "postgresql").lower()
             host = os.getenv("DB_HOST", "localhost")
-            port = os.getenv("DB_PORT", "5432")
-            user = os.getenv("DB_USER", "postgres")
-            password = os.getenv("DB_PASSWORD", "postgres")
-            database = os.getenv("DB_NAME", "postgres")
-            
-            db_url = f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{database}"
+            port = os.getenv("DB_PORT")
+            user = os.getenv("DB_USER", "postgres" if db_type == "postgresql" else "sa")
+            password = os.getenv("DB_PASSWORD", "postgres" if db_type == "postgresql" else "YourStrong!Passw0rd")
+            database = os.getenv("DB_NAME", "postgres" if db_type == "postgresql" else "master")
+
+            if db_type in ("postgres", "postgresql"):
+                port = port or "5432"
+                db_url = f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{database}"
+            elif db_type in ("mysql",):
+                port = port or "3306"
+                # aiomysql is the async dialect
+                db_url = f"mysql+aiomysql://{user}:{password}@{host}:{port}/{database}"
+            elif db_type in ("sqlite",):
+                # file DB or memory; if DB_NAME holds a path, use it; else :memory:
+                if database and database not in ("sqlite", "memory"):
+                    db_url = f"sqlite+aiosqlite:///{database}"
+                else:
+                    db_url = "sqlite+aiosqlite:///:memory:"
+            elif db_type in ("mssql", "sqlserver"):
+                # Default to pyodbc with Driver 18; trust server cert can be toggled via env
+                port = port or "1433"
+                driver = os.getenv("DB_DRIVER", "ODBC Driver 18 for SQL Server")
+                trust = os.getenv("DB_TRUST_SERVER_CERTIFICATE", "yes")
+                encrypt = os.getenv("DB_ENCRYPT", "yes")
+                # URL-encode spaces in driver automatically handled by SQLAlchemy when using query params
+                db_url = (
+                    f"mssql+pyodbc://{user}:{password}@{host}:{port}/{database}"
+                    f"?driver={driver.replace(' ', '+')}&Encrypt={encrypt}&TrustServerCertificate={trust}"
+                )
+            else:
+                # Fallback to Postgres
+                port = port or "5432"
+                db_url = f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{database}"
         else:
-            # Convert standard PostgreSQL URL to async format for compatibility
+            # Normalize url schemes to async-capable dialects
             if db_url.startswith("postgresql://"):
                 db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
             elif db_url.startswith("mysql://"):
                 db_url = db_url.replace("mysql://", "mysql+aiomysql://", 1)
-        
+            elif db_url.startswith(("mssql://", "sqlserver://")):
+                # Normalize to mssql+pyodbc; ensure a driver param exists
+                db_url = re.sub(r"^(mssql|sqlserver)://", "mssql+pyodbc://", db_url, count=1)
+                if "driver=" not in db_url:
+                    driver = os.getenv("DB_DRIVER", "ODBC Driver 18 for SQL Server").replace(" ", "+")
+                    join_char = "&" if "?" in db_url else "?"
+                    db_url = f"{db_url}{join_char}driver={driver}"
+                # Sensible secure defaults if not present
+                if "Encrypt=" not in db_url:
+                    db_url += "&Encrypt=yes"
+                if "TrustServerCertificate=" not in db_url:
+                    db_url += "&TrustServerCertificate=yes"
+            elif db_url.startswith("sqlite://") and "+aiosqlite" not in db_url:
+                db_url = db_url.replace("sqlite://", "sqlite+aiosqlite://", 1)
+
         return db_url
     
     def _detect_database_type(self) -> str:
         """Detect database type from URL"""
-        if "postgresql" in self.database_url or "postgres" in self.database_url:
+        url = self.database_url.lower()
+        if "postgresql" in url or "postgres" in url:
             return "postgresql"
-        elif "mysql" in self.database_url:
+        elif "mysql" in url:
             return "mysql"
-        elif "sqlite" in self.database_url:
+        elif "sqlite" in url:
             return "sqlite"
+        elif "mssql" in url or "sqlserver" in url:
+            return "mssql"
         else:
             return "postgresql"  # Default fallback
     
@@ -102,6 +148,7 @@ class DatabaseManager:
         """Test database connection"""
         try:
             async with self.engine.begin() as conn:
+                # A simple cross-DB ping
                 await conn.execute(text("SELECT 1"))
             return True
         except Exception as e:
@@ -134,6 +181,19 @@ class DatabaseManager:
                         AND name NOT LIKE 'sqlite_%'
                         ORDER BY name
                     """)
+                elif self.database_type == "mssql":
+                    # Use sys.* for better performance; restrict to user tables
+                    query = text("""
+                        SELECT 
+                            t.name AS table_name,
+                            COUNT(c.column_id) AS column_count
+                        FROM sys.tables AS t
+                        LEFT JOIN sys.columns AS c ON c.object_id = t.object_id
+                        INNER JOIN sys.schemas s ON s.schema_id = t.schema_id
+                        WHERE s.name NOT IN ('sys')
+                        GROUP BY t.name
+                        ORDER BY t.name
+                    """)
                 else:  # MySQL
                     query = text("""
                         SELECT 
@@ -150,16 +210,15 @@ class DatabaseManager:
                 result = await conn.execute(query)
                 tables = []
                 for row in result:
-                    # Use index-based access instead of attribute access for compatibility
+                    # Index-based for broad compatibility
                     table_info = {
-                        "table_name": row[0],  # First column is table_name
-                        "column_count": row[1] if len(row) > 1 else 0  # Second column is column_count
+                        "table_name": row[0],
+                        "column_count": int(row[1]) if len(row) > 1 and row[1] is not None else 0
                     }
                     
-                    # For SQLite, get actual column count
+                    # For SQLite, compute accurate column_count
                     if self.database_type == "sqlite":
-                        col_query = text(f"PRAGMA table_info({row[0]})")
-                        col_result = await conn.execute(col_query)
+                        col_result = await conn.execute(text(f"PRAGMA table_info({row[0]})"))
                         table_info["column_count"] = len(list(col_result))
                     
                     tables.append(table_info)
@@ -184,17 +243,31 @@ class DatabaseManager:
                         AND table_name = :table_name
                         ORDER BY ordinal_position
                     """)
+                    params = {"table_name": table_name}
                 elif self.database_type == "sqlite":
-                    query = text(f"PRAGMA table_info({table_name})")
-                    result = await conn.execute(query)
+                    result = await conn.execute(text(f"PRAGMA table_info({table_name})"))
                     columns = []
-                    for row in result:
+                    for r in result:
+                        # pragma returns: cid,name,type,notnull,dflt_value,pk
                         columns.append({
-                            "column_name": row.name,
-                            "data_type": row.type,
-                            "is_nullable": not bool(row.notnull)
+                            "column_name": r[1],
+                            "data_type": r[2],
+                            "is_nullable": (r[3] == 0)  # notnull==0 means nullable
                         })
                     return columns
+                elif self.database_type == "mssql":
+                    # Support schema-qualified names; OBJECT_ID handles it
+                    query = text("""
+                        SELECT 
+                            c.name AS column_name,
+                            t.name AS data_type,
+                            CASE WHEN c.is_nullable = 1 THEN 'YES' ELSE 'NO' END AS is_nullable
+                        FROM sys.columns c
+                        JOIN sys.types t ON t.user_type_id = c.user_type_id
+                        WHERE c.object_id = OBJECT_ID(:tbl)
+                        ORDER BY c.column_id
+                    """)
+                    params = {"tbl": table_name}
                 else:  # MySQL
                     query = text("""
                         SELECT 
@@ -206,77 +279,100 @@ class DatabaseManager:
                         AND table_name = :table_name
                         ORDER BY ordinal_position
                     """)
+                    params = {"table_name": table_name}
                 
-                result = await conn.execute(query, {"table_name": table_name})
+                result = await conn.execute(query, params)
                 return [
                     {
-                        "column_name": row.column_name,
-                        "data_type": row.data_type,
-                        "is_nullable": row.is_nullable == "YES"
+                        "column_name": row[0],
+                        "data_type": row[1],
+                        "is_nullable": (str(row[2]).upper() == "YES")
                     }
                     for row in result
                 ]
         except Exception as e:
             logger.error(f"Error describing table {table_name}: {e}")
             raise
-    
+
     def _is_query_safe(self, query: str) -> bool:
         """Check if query is safe (read-only operations only)"""
         # Remove comments and normalize whitespace
         cleaned_query = re.sub(r'--.*$', '', query, flags=re.MULTILINE)
         cleaned_query = re.sub(r'/\*.*?\*/', '', cleaned_query, flags=re.DOTALL)
-        cleaned_query = ' '.join(cleaned_query.split()).upper()
+        cleaned_query = ' '.join(cleaned_query.split())
+        cleaned_upper = cleaned_query.upper()
         
-        # Check for dangerous operations
+        # Disallow any data-definition/manipulation or exec
         dangerous_patterns = [
             r'\bDROP\b', r'\bDELETE\b', r'\bINSERT\b', r'\bUPDATE\b',
             r'\bALTER\b', r'\bCREATE\b', r'\bTRUNCATE\b', r'\bREPLACE\b',
-            r'\bMERGE\b', r'\bEXEC\b', r'\bEXECUTE\b', r'\bCALL\b'
+            r'\bMERGE\b', r'\bEXEC\b', r'\bEXECUTE\b', r'\bCALL\b',
+            r'\bGRANT\b', r'\bREVOKE\b'
         ]
-        
         for pattern in dangerous_patterns:
-            if re.search(pattern, cleaned_query):
+            if re.search(pattern, cleaned_upper):
                 return False
         
-        # Must start with SELECT
-        if not re.match(r'^\s*SELECT\b', cleaned_query):
+        # Must start with SELECT (allow leading CTEs)
+        if not re.match(r'^\s*(WITH\s+.*?\)\s*)?SELECT\b', cleaned_upper):
             return False
         
         return True
-    
+
+    def _apply_limit(self, query: str, limit: int) -> str:
+        """Apply a row limit in a database-appropriate way."""
+        q = query.strip().rstrip(';')
+        upper = q.upper().lstrip()
+
+        # If query already has a limiting construct, leave it
+        has_limit = (
+            re.search(r'\bLIMIT\s+\d+\b', upper) or
+            re.match(r'^SELECT\s+TOP\s+\d+\b', upper) or
+            re.search(r'\bFETCH\s+NEXT\s+\d+\s+ROWS\s+ONLY\b', upper)  # OFFSET/FETCH
+        )
+        if has_limit:
+            # For existing LIMIT in non-MSSQL, replace with requested limit
+            if self.database_type in ("postgresql", "mysql", "sqlite"):
+                q = re.sub(r'\bLIMIT\s+\d+\b', f'LIMIT {limit}', q, flags=re.IGNORECASE)
+            elif self.database_type == "mssql":
+                # If it's FETCH NEXT, replace the number
+                q = re.sub(r'(\bFETCH\s+NEXT\s+)\d+(\s+ROWS\s+ONLY\b)', rf'\g<1>{limit}\g<2>', q, flags=re.IGNORECASE)
+                q = re.sub(r'(^\s*SELECT\s+TOP\s+)\d+(\b)', rf'\g<1>{limit}\g<2>', q, flags=re.IGNORECASE)
+            return q
+
+        # Apply new limit
+        if self.database_type in ("postgresql", "mysql", "sqlite"):
+            return f"{q} LIMIT {limit}"
+        elif self.database_type == "mssql":
+            # Robust wrap to preserve ORDER BY etc.
+            return f"SELECT TOP {limit} * FROM ({q}) AS _sub"
+        else:
+            return f"{q} LIMIT {limit}"
+
     async def execute_safe_query(self, query: str, limit: int = 50) -> List[Dict[str, Any]]:
         """Execute a query with safety checks"""
-        # Safety checks
         if not self._is_query_safe(query):
             raise ValueError("Query contains unsafe operations. Only SELECT queries are allowed.")
         
-        # Add/modify LIMIT clause
-        query_upper = query.upper()
-        if 'LIMIT' in query_upper:
-            # Replace existing LIMIT with our limit
-            query = re.sub(r'\bLIMIT\s+\d+', f'LIMIT {limit}', query, flags=re.IGNORECASE)
-        else:
-            # Add LIMIT clause
-            query = f"{query.rstrip(';')} LIMIT {limit}"
+        limited_query = self._apply_limit(query, limit)
         
         try:
             async with self.engine.begin() as conn:
-                result = await conn.execute(text(query))
+                result = await conn.execute(text(limited_query))
                 
                 # Convert rows to dictionaries
                 rows = []
+                keys = result.keys()
                 for row in result:
                     row_dict = {}
-                    for i, col in enumerate(result.keys()):
+                    for i, col in enumerate(keys):
                         value = row[i]
-                        # Handle special types that aren't JSON serializable
-                        if hasattr(value, 'isoformat'):  # datetime objects
+                        if hasattr(value, 'isoformat'):
                             value = value.isoformat()
                         elif hasattr(value, '__str__') and not isinstance(value, (str, int, float, bool, type(None))):
                             value = str(value)
                         row_dict[col] = value
                     rows.append(row_dict)
-                
                 return rows
                 
         except Exception as e:
@@ -289,16 +385,14 @@ class DatabaseManager:
             async with self.engine.begin() as conn:
                 result = await conn.execute(text(query))
 
-                # Check if this query returns rows
                 if result.returns_rows:
-                    # Convert rows to dictionaries
                     rows = []
+                    keys = result.keys()
                     for row in result:
                         row_dict = {}
-                        for i, col in enumerate(result.keys()):
+                        for i, col in enumerate(keys):
                             value = row[i]
-                            # Handle special types that aren't JSON serializable
-                            if hasattr(value, 'isoformat'):  # datetime objects
+                            if hasattr(value, 'isoformat'):
                                 value = value.isoformat()
                             elif hasattr(value, '__str__') and not isinstance(value, (str, int, float, bool, type(None))):
                                 value = str(value)
@@ -306,7 +400,6 @@ class DatabaseManager:
                         rows.append(row_dict)
                     return rows
                 else:
-                    # For non-SELECT queries (INSERT, UPDATE, CREATE, DELETE, etc.)
                     return [{"affected_rows": result.rowcount, "status": "success", "query_type": "modification"}]
 
         except Exception as e:
@@ -322,8 +415,6 @@ async def get_db_manager() -> DatabaseManager:
     
     if _db_manager is None:
         _db_manager = DatabaseManager()
-        
-        # Test connection
         if not await _db_manager.test_connection():
             raise Exception("Cannot connect to database")
     
